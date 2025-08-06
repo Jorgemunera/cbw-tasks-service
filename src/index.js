@@ -1,6 +1,13 @@
 const express = require("express");
 const cors = require("cors");
-const {config} = require("./config/config");
+const { config } = require("./config/config");
+const routerApi = require("./routes");
+const {
+    logErrors,
+    obmErrorHandler,
+    boomErrorHandler,
+    errorHandler
+} = require("./middlewares/error.handler");
 
 // app
 const app = express();
@@ -11,13 +18,13 @@ app.use(express.json());
 app.use(cors());
 
 // routes
-app.get("/", (req, res) => {
-    res.json({
-        message: "Welcome"
-    })
-})
+routerApi(app);
 
 // middlewares
+app.use(logErrors);
+app.use(obmErrorHandler);
+app.use(boomErrorHandler);
+app.use(errorHandler);
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`)

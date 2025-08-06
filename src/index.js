@@ -1,5 +1,6 @@
 const express = require("express");
 const cors = require("cors");
+const connectMongo = require("./libs/mongodb");
 const { config } = require("./config/config");
 const routerApi = require("./routes");
 const {
@@ -25,6 +26,9 @@ app.use(logErrors);
 app.use(obmErrorHandler);
 app.use(boomErrorHandler);
 app.use(errorHandler);
+
+// connect to MongoDB
+connectMongo();
 
 app.listen(port, () => {
     console.log(`Server running on port ${port}`)

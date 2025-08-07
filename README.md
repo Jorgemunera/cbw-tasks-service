@@ -47,9 +47,16 @@ cd cbw-tasks-service
 
 2. Crear el archivo `.env` desde el ejemplo:
 
+**En Linux/macOS:**
+
 ```
 cp .env.example .env
 ```
+
+**En Windows (CMD):**
+
+```
+copy .env.example .env
 
 3. Construir e iniciar los contenedores:
 

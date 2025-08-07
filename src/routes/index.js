@@ -4,7 +4,7 @@ const tasksRouter = require("./tasks.router");
 
 function routerApi(app){
     const router = express.Router();
-    app.use("api/v1", router);
+    app.use("/api/v1", router);
 
     router.use("/tasks", tasksRouter);
 }

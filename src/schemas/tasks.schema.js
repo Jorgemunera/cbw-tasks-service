@@ -4,7 +4,9 @@ const title = Joi.string().min(1);
 const description = Joi.string().min(1);
 const status = Joi.string();
 const assigned_to = Joi.string();
-const due_date = Joi.date();
+const due_date = Joi.date().min('now').messages({
+    'date.min': 'La fecha de vencimiento no puede ser en el pasado'
+});
 
 // Schema for create task
 const createTaskSchema = Joi.object({

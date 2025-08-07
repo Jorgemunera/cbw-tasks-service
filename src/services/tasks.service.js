@@ -1,5 +1,7 @@
 const boom = require("@hapi/boom");
 const { Task, VALID_STATUSES } = require("../db/models/tasks.model");
+const { getChannel } = require("../libs/rabbitmq");
+const { config } = require("../config/config");
 
 class TasksService {
     async findAll() {
@@ -45,6 +47,49 @@ class TasksService {
             throw boom.notFound("Tarea no encontrada para eliminar");
         }
         return;
+    }
+
+    async schedule(id) {
+        const task = await Task.findById(id);
+        if (!task) {
+            throw boom.notFound("Tarea no encontrada para programar");
+        }
+
+        const channel = getChannel();
+
+        const payload = {
+            id: task._id,
+            title: task.title,
+            due_date: task.due_date,
+            scheduled_at: new Date()
+        };
+
+        channel.sendToQueue(
+            config.rabbitmqQueue,
+            Buffer.from(JSON.stringify(payload)),
+            {
+                persistent: true
+            }
+        );
+
+        return { message: "Tarea programada correctamente", taskId: id };
+    }
+
+    async generateCompletedReportJob() {
+        const channel = getChannel();
+
+        const payload = {
+            type: 'report',
+            requested_at: new Date()
+        };
+
+        channel.sendToQueue(
+            config.rabbitmqQueue,
+            Buffer.from(JSON.stringify(payload)),
+            { persistent: true }
+        );
+
+        return { message: 'Generación de reporte programada' };
     }
 }
 

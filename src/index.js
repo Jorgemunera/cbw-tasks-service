@@ -24,8 +24,8 @@ routerApi(app);
 
 // middlewares
 app.use(logErrors);
-app.use(obmErrorHandler);
 app.use(boomErrorHandler);
+app.use(obmErrorHandler);
 app.use(errorHandler);
 
 // connect to MongoDB and RabbitMQ

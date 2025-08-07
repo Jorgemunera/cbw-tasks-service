@@ -4,20 +4,32 @@ const { config } = require('../config/config');
 let channel;
 let connection;
 
+
 async function connectRabbitMQ() {
-    try {
-        connection = await amqp.connect(config.rabbitmqUri);
-        channel = await connection.createChannel();
+    let attempts = 0;
 
-        // Asegurar que la cola existe y es durable
-        await channel.assertQueue(config.rabbitmqQueue, {
-            durable: true
-        });
+    while (attempts < config.rabbitMaxRetries) {
+        try {
+            connection = await amqp.connect(config.rabbitmqUri);
+            channel = await connection.createChannel();
 
-        console.log('✅ Conectado a RabbitMQ');
-    } catch (error) {
-        console.error('❌ Error al conectar a RabbitMQ:', error);
-        process.exit(1);
+            await channel.assertQueue(config.rabbitmqQueue, {
+                durable: true
+            });
+
+            console.log('✅ Conectado a RabbitMQ');
+            return;
+        } catch (error) {
+            attempts++;
+            console.error(`❌ Intento ${attempts} de conexión a RabbitMQ fallido:`, error.message);
+
+            if (attempts >= config.rabbitMaxRetries) {
+                console.error('💀 No se pudo conectar a RabbitMQ después de varios intentos. Abortando...');
+                process.exit(1);
+            }
+
+            await new Promise(resolve => setTimeout(resolve, config.rabbitRetryDelayMs));
+        }
     }
 }
 

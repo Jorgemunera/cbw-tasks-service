@@ -1,10 +1,8 @@
 const { config } = require('./config/config');
 const { connectRabbitMQ, getChannel } = require('./libs/rabbitmq');
 const connectMongo = require('./libs/mongodb');
-const { handleScheduledTask } = require('./jobs/schedule.task');
+const { jobHandlers } = require('./jobs/job.handlers');
 const { checkTasksCloseToDueDate } = require('./jobs/notify.due.tasks');
-const { generateCompletedTasksReport } = require('./jobs/generate.report');
-
 
 async function startWorker() {
     await connectMongo();
@@ -20,14 +18,13 @@ async function startWorker() {
                     const content = JSON.parse(msg.content.toString());
                     const type = content.type || 'task';
 
-                    if (type === 'task') {
-                        console.log('👂 Recibido mensaje de tarea:', content);
-                        await handleScheduledTask(content);
-                    } else if (type === 'report') {
-                        console.log('📥 Recibido mensaje de reporte.');
-                        await generateCompletedTasksReport();
+                    const handler = jobHandlers[type];
+
+                    if (handler) {
+                        console.log(`📥 Ejecutando handler para tipo: '${type}'`);
+                        await handler(content);
                     } else {
-                        console.warn(`⚠️ Tipo de mensaje no reconocido: ${type}`);
+                        console.warn(`⚠️ Tipo de mensaje no reconocido: '${type}'`);
                     }
 
                     channel.ack(msg);

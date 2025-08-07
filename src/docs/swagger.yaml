@@ -1,0 +1,461 @@
+openapi: 3.0.3
+info:
+  title: API de Gestión y Programación de Tareas
+  description: |
+    Microservicio REST para la creación, gestión y programación de tareas.
+    Permite operaciones CRUD, filtrado por estado, programación asíncrona de procesamiento vía RabbitMQ, y generación de reportes de tareas completadas.
+    Incluye validación de datos con Joi y manejo de errores estructurado con Boom y validadores personalizados.
+  version: 1.0.0
+  contact:
+    name: Jorge Munera
+    email: gerjo9211@hotmail.com
+    url: https://www.linkedin.com/in/jorgemunera/
+  license:
+    name: ISC License
+
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Servidor local de desarrollo
+  - url: https://api.tudominio.com/api/v1
+    description: (Opcional) Servidor de producción
+
+tags:
+  - name: Tasks
+    description: Operaciones relacionadas con la gestión de tareas
+  - name: Job Scheduling
+    description: Endpoints para programar ejecución de tareas
+  - name: Reportes
+    description: Generación de reportes automáticos
+
+components:
+  schemas:
+    Task:
+      type: object
+      properties:
+        _id:
+          type: string
+          example: "64dbe395a3c2f6a5e4a9a7b3"
+        title:
+          type: string
+          example: "Revisar documentos legales"
+        description:
+          type: string
+          example: "Revisión de contratos del cliente"
+        status:
+          type: string
+          enum: [pending, in-progress, completed]
+          example: "pending"
+        assigned_to:
+          type: string
+          example: "Carlos Pérez"
+        due_date:
+          type: string
+          format: date-time
+          example: "2025-08-10T18:00:00.000Z"
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-08-07T12:00:00.000Z"
+        updatedAt:
+          type: string
+          format: date-time
+          example: "2025-08-07T12:00:00.000Z"
+
+    CreateTaskDto:
+      type: object
+      required:
+        - title
+      properties:
+        title:
+          type: string
+          example: "Llamar al cliente"
+        description:
+          type: string
+          example: "Confirmar detalles del contrato"
+        status:
+          type: string
+          enum: [pending, in-progress, completed]
+          default: "pending"
+          example: "pending"
+        assigned_to:
+          type: string
+          example: "Luis Rodríguez"
+        due_date:
+          type: string
+          format: date-time
+          example: "2025-08-15T10:00:00.000Z"
+
+    UpdateTaskDto:
+      type: object
+      properties:
+        title:
+          type: string
+          example: "Actualizar presentación"
+        description:
+          type: string
+          example: "Incluir datos financieros del Q2"
+        status:
+          type: string
+          enum: [pending, in-progress, completed]
+        assigned_to:
+          type: string
+          example: "Ana Morales"
+        due_date:
+          type: string
+          format: date-time
+          example: "2025-08-12T09:30:00.000Z"
+
+    ErrorBoom:
+      type: object
+      properties:
+        statusCode:
+          type: integer
+          example: 400
+        error:
+          type: string
+          example: "Bad Request"
+        message:
+          type: string
+          example: "El campo 'title' es requerido"
+
+    ErrorMongooseCast:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "ID inválido"
+        message:
+          type: string
+          example: "Cast to ObjectId failed for value 'abc123' at path '_id' for model 'Task'"
+
+    ErrorMongooseValidation:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "Error de validación"
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+                example: "title"
+              message:
+                type: string
+                example: "Path `title` is required."
+
+    ErrorGeneric:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Unexpected error"
+        stack:
+          type: string
+          example: "Error: Unexpected error\n    at ... (en desarrollo)"
+
+    ScheduledResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Tarea programada correctamente"
+        taskId:
+          type: string
+          example: "64dbe395a3c2f6a5e4a9a7b3"
+
+    ReportScheduledResponse:
+      type: object
+      properties:
+        message:
+          type: string
+          example: "Generación de reporte programada"
+  responses:
+    TaskCreated:
+      description: Tarea creada exitosamente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Task'
+
+    TaskList:
+      description: Lista de tareas
+      content:
+        application/json:
+          schema:
+            type: array
+            items:
+              $ref: '#/components/schemas/Task'
+
+    TaskFound:
+      description: Tarea encontrada
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Task'
+
+    TaskUpdated:
+      description: Tarea actualizada exitosamente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Task'
+
+    TaskDeleted:
+      description: Tarea eliminada exitosamente
+      content:
+        application/json:
+          schema:
+            type: string
+            example: ""
+
+    TaskScheduled:
+      description: Tarea programada correctamente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ScheduledResponse'
+
+    ReportScheduled:
+      description: Reporte programado correctamente
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ReportScheduledResponse'
+
+    BadRequestBoom:
+      description: Error de validación (Boom)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorBoom'
+
+    BadRequestMongooseCast:
+      description: Error de ID inválido (CastError)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorMongooseCast'
+
+    BadRequestMongooseValidation:
+      description: Error de validación de MongoDB
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorMongooseValidation'
+
+    NotFound:
+      description: Recurso no encontrado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorBoom'
+          example:
+            statusCode: 404
+            error: "Not Found"
+            message: "Tarea no encontrada"
+
+    InternalError:
+      description: Error inesperado del servidor
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorGeneric'
+
+paths:
+  /tasks:
+    get:
+      tags:
+        - Tasks
+      summary: Obtener todas las tareas
+      description: Retorna una lista de todas las tareas registradas en el sistema, ordenadas por fecha de creación (más recientes primero).
+      responses:
+        '200':
+          $ref: '#/components/responses/TaskList'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    post:
+      tags:
+        - Tasks
+      summary: Crear una nueva tarea
+      description: Crea una tarea nueva en estado `pending` (por defecto) y la guarda en la base de datos.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskDto'
+      responses:
+        '201':
+          $ref: '#/components/responses/TaskCreated'
+        '400':
+          $ref: '#/components/responses/BadRequestBoom'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /tasks/{id}:
+    get:
+      tags:
+        - Tasks
+      summary: Obtener una tarea por ID
+      description: Busca una tarea en la base de datos utilizando su identificador único.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: ID de la tarea a consultar
+          schema:
+            type: string
+            example: 64dbe395a3c2f6a5e4a9a7b3
+      responses:
+        '200':
+          $ref: '#/components/responses/TaskFound'
+        '400':
+          $ref: '#/components/responses/BadRequestMongooseCast'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    patch:
+      tags:
+        - Tasks
+      summary: Actualizar parcialmente una tarea
+      description: Actualiza uno o más campos de una tarea existente. Solo se modifican los campos enviados.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: ID de la tarea a actualizar
+          schema:
+            type: string
+            example: 64dbe395a3c2f6a5e4a9a7b3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTaskDto'
+      responses:
+        '200':
+          $ref: '#/components/responses/TaskUpdated'
+        '400':
+          $ref: '#/components/responses/BadRequestBoom'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+    put:
+      tags:
+        - Tasks
+      summary: Actualizar completamente una tarea
+      description: Reemplaza todos los campos de una tarea existente con los nuevos datos proporcionados.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: ID de la tarea a reemplazar
+          schema:
+            type: string
+            example: 64dbe395a3c2f6a5e4a9a7b3
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateTaskDto'
+      responses:
+        '200':
+          $ref: '#/components/responses/TaskUpdated'
+        '400':
+          $ref: '#/components/responses/BadRequestBoom'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+    delete:
+      tags:
+        - Tasks
+      summary: Eliminar una tarea
+      description: Elimina una tarea de la base de datos por su ID.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: ID de la tarea a eliminar
+          schema:
+            type: string
+            example: 64dbe395a3c2f6a5e4a9a7b3
+      responses:
+        '204':
+          $ref: '#/components/responses/TaskDeleted'
+        '400':
+          $ref: '#/components/responses/BadRequestMongooseCast'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /tasks/status/{status}:
+    get:
+      tags:
+        - Tasks
+      summary: Obtener tareas por estado
+      description: >
+        Retorna una lista de tareas filtradas por su estado. Los valores permitidos para `status` son: `pending`, `in-progress`, `completed`.
+      parameters:
+        - in: path
+          name: status
+          required: true
+          description: Estado de las tareas a consultar
+          schema:
+            type: string
+            enum: [pending, in-progress, completed]
+            example: pending
+      responses:
+        '200':
+          $ref: '#/components/responses/TaskList'
+        '400':
+          $ref: '#/components/responses/BadRequestBoom'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /tasks/{id}/schedule:
+    post:
+      tags:
+        - Job Scheduling
+      summary: Programar una tarea para ejecución diferida
+      description: >
+        Envía la tarea identificada por `id` a la cola de RabbitMQ para que sea procesada de forma asíncrona por el worker.
+        Este proceso cambia el estado de la tarea a `in-progress`, simula una espera de 30 segundos, y luego la marca como `completed`.
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: ID de la tarea a programar
+          schema:
+            type: string
+            example: 64dbe395a3c2f6a5e4a9a7b3
+      responses:
+        '202':
+          $ref: '#/components/responses/TaskScheduled'
+        '400':
+          $ref: '#/components/responses/BadRequestMongooseCast'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+  /tasks/report/completed:
+    post:
+      tags:
+        - Reportes
+      summary: Programar generación de reporte de tareas completadas
+      description: >
+        Encola un job de tipo `report` en RabbitMQ que será procesado por el worker.
+        Este job genera un listado de todas las tareas completadas y lo imprime por consola luego de un tiempo simulado de 3 minutos.
+      responses:
+        '202':
+          $ref: '#/components/responses/ReportScheduled'
+        '500':
+          $ref: '#/components/responses/InternalError'
+

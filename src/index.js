@@ -11,6 +11,13 @@ const {
     errorHandler
 } = require("./middlewares/error.handler");
 
+const swaggerUi = require('swagger-ui-express');
+const YAML = require('yamljs');
+const path = require('path');
+
+const swaggerDocument = YAML.load(path.join(__dirname, './docs/swagger.yaml'));
+
+
 // app
 const app = express();
 const port = config.port;
@@ -21,6 +28,9 @@ app.use(cors());
 
 // routes
 routerApi(app);
+
+// Swagger documentation
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // middlewares
 app.use(logErrors);
